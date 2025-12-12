@@ -1,145 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SART Text-Only</title>
+  <meta charset="UTF-8">
+  <title>SART Test</title>
   <script src="https://unpkg.com/jspsych@7.3.3/dist/jspsych.js"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.1"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.1"></script>
   <link href="https://unpkg.com/jspsych@7.3.3/dist/jspsych.css" rel="stylesheet" />
-  <style>
-    body { background:#000; color:#fff; font-family:Arial,sans-serif; }
-    .center { display:flex; align-items:center; justify-content:center; height:100vh; text-align:center; }
-    .digit { font-weight:bold; }
-    .tapHint { position:fixed; bottom:16px; left:0; right:0; text-align:center; color:#aaa; font-size:14px; }
-  </style>
 </head>
 <body>
-<div id="jspsych-target"></div>
-<script>
-function uuid() {
-  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-  );
-}
+  <div id="jspsych-target"></div>
+  <script>
+    const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 
-const SESSION_ID = uuid();
-const FONT_SIZES = [48,72,94,100,120];
-const FIRST_WINDOW_MS = 250;
-const SECOND_WINDOW_MS = 900;
-const TOTAL_ITI_MS = 1150;
+    const timeline = [
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div style="font-size:40px; text-align:center;">Hello Nafiz 👋</div>',
+        choices: "NO_KEYS",
+        trial_duration: 2000
+      }
+    ];
 
-function shuffle(arr){ return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]); }
-function digitList(times){ const base=[1,2,3,4,5,6,7,8,9]; let out=[]; for(let i=0;i<times;i++) out.push(...base); return shuffle(out); }
-
-const jsPsych = initJsPsych({
-  display_element:'jspsych-target',
-  on_finish: async () => {
-    const rows = jsPsych.data.get().filterCustom(d => d.BLOCKNAME && d.RT !== undefined).values();
-    const payload = { session_id: SESSION_ID, rows };
-    try {
-      await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch {}
-    jsPsych.data.get().localSave('csv','sart_text.csv');
-  }
-});
-
-function textScreen(msg,duration=1000){
-  return { type:jsPsychHtmlKeyboardResponse, stimulus:`<div class="center">${msg}</div>`, choices:"NO_KEYS", trial_duration:duration };
-}
-
-function makeSartTrial(digit,blockName,blockNumber){
-  const fontIndex=Math.floor(Math.random()*FONT_SIZES.length);
-  const fontPx=FONT_SIZES[fontIndex];
-  return {
-    timeline:[
-      { type:jsPsychHtmlKeyboardResponse,
-        stimulus:`<div class="center"><div class="digit" style="font-size:${fontPx}px;">${digit}</div><div class="tapHint">Tap for digits ≠ 3. Don’t tap for 3.</div></div>`,
-        choices:[' '], trial_duration:FIRST_WINDOW_MS, response_ends_trial:true,
-        data:{BLOCKNAME:blockName,BLOCKNUMBER:blockNumber,digit,digit_size:fontIndex,segment:'first'} },
-      { type:jsPsychHtmlKeyboardResponse, stimulus:`<div class="center">+</div>`, choices:"NO_KEYS", trial_duration:0 },
-      { type:jsPsychHtmlButtonResponse,
-        stimulus:`<div class="center"><div class="tapHint">Second window: tap to respond (Go), or wait (No-Go).</div></div>`,
-        choices:['Tap'], trial_duration:SECOND_WINDOW_MS, response_ends_trial:true,
-        data:{BLOCKNAME:blockName,BLOCKNUMBER:blockNumber,digit,digit_size:fontIndex,segment:'second'},
-        on_finish:(data)=>{
-          const first=jsPsych.data.get().filter({segment:'first'}).last(1).values()[0];
-          if(first && first.rt!==null){ data.combined_rt=first.rt; data.responded=true; }
-          else if(data.rt!==null){ data.combined_rt=FIRST_WINDOW_MS+data.rt; data.responded=true; }
-          else { data.combined_rt=FIRST_WINDOW_MS+SECOND_WINDOW_MS; data.responded=false; }
-        }},
-      { type:jsPsychHtmlKeyboardResponse,
-        stimulus:()=>{
-          const second=jsPsych.data.get().filter({segment:'second'}).last(1).values()[0];
-          const responded=second.responded; const rt=second.combined_rt;
-          const trial_type=(digit===3)?0:1; let mystatus=1; let msg="";
-          if(digit===3 && responded){ mystatus=0; msg="Oops! You tapped when you shouldn’t have."; }
-          else if(digit!==3 && !responded){ mystatus=0; msg="Oops! You missed a Go digit."; }
-          jsPsych.data.write({BLOCKNAME:blockName,BLOCKNUMBER:blockNumber,trial_type,digit,digit_size:fontIndex,mystatus,RT:Math.round(rt)});
-          return `<div class="center">${msg}</div>`;
-        },
-        choices:"NO_KEYS",
-        trial_duration:()=>{
-          const second=jsPsych.data.get().filter({segment:'second'}).last(1).values()[0];
-          const rt=second.combined_rt; const responded=second.responded;
-          let mystatus=1;
-          if(digit===3 && responded) mystatus=0;
-          if(digit!==3 && !responded) mystatus=0;
-          if(mystatus===0){ return 3000+500; } else { return Math.max(0,TOTAL_ITI_MS-rt); }
-        }}
-    ]
-  };
-}
-
-function blockFeedback(blockName){
-  return { type:jsPsychHtmlButtonResponse,
-    stimulus:()=>{
-      const rows=jsPsych.data.get().filter({BLOCKNAME:blockName}).values();
-      const totalGo=rows.filter(r=>r.trial_type===1).length;
-      const goMistakes=rows.filter(r=>r.trial_type===1 && r.mystatus===0).length;
-      const totalNoGo=rows.filter(r=>r.trial_type===0).length;
-      const noGoMistakes=rows.filter(r=>r.trial_type===0 && r.mystatus===0).length;
-      const goMistakesP=totalGo?Math.round((goMistakes/totalGo)*100):0;
-      const noGoMistakesP=totalNoGo?Math.round((noGoMistakes/totalNoGo)*100):0;
-      return `<div class="center" style="flex-direction:column;">
-        <h2>${blockName==='training'?'Results in training block':'Results in second block'}</h2>
-        <div>Number Go trials: ${totalGo}</div>
-        <div>Number Go mistakes: ${goMistakes}</div>
-        <div>Go mistakes: ${goMistakesP}%</div>
-        <div>Number No Go trials: ${totalNoGo}</div>
-        <div>Number No Go mistakes: ${noGoMistakes}</div>
-        <div>No Go mistakes: ${noGoMistakesP}%</div>
-      </div>`;
-    },
-    choices:['Press here to continue'] };
-}
-
-const trainingDigits=digitList(2);
-const trainingTimeline=[
-  textScreen("Welcome to the Attention Task"),
-  textScreen("Tap when you see digits 1–9, except for 3."),
-  textScreen("Do NOT tap when you see the digit 3."),
-  textScreen("Ready in 3..."),textScreen("Ready in 2..."),textScreen("Ready in 1..."),
-  ...trainingDigits.map(d=>makeSartTrial(d,'training',1)),
-  blockFeedback('training'),
-  textScreen("Training complete. Well done!")
-];
-
-const realDigits=digitList(25);
-const realTimeline=[
-  textScreen("Now begins the real test. Same rules apply."),
-  textScreen("Ready in 3..."),textScreen("Ready in 2..."),textScreen("Ready in 1..."),
-  ...realDigits.map(d=>makeSartTrial(d,'realtest',2)),
-  blockFeedback('realtest'),
-  textScreen("Experiment complete. Thank you!")
-];
-
-jsPsych.run([...trainingTimeline,...realTimeline]);
-</script>
+    jsPsych.run(timeline);
+  </script>
 </body>
 </html>
