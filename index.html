@@ -11,90 +11,69 @@
   <link href="https://unpkg.com/jspsych@7.3.3/dist/jspsych.css" rel="stylesheet" />
 
   <style>
-    body { background:#000; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
-    .container { max-width:800px; margin:auto; }
-    h1 { font-size:32px; margin-bottom:10px; }
-    button { padding:10px 16px; font-size:16px; margin-top:10px; cursor:pointer; }
-    pre { background:#111; padding:10px; border-radius:5px; white-space:pre-wrap; word-break:break-word; }
-    .ok { color:#64ffda; }
-    .err { color:#ff6b6b; }
+    body { background:#000; color:#fff; font-family:Arial,sans-serif; }
+    .stimulus { font-size: 64px; text-align:center; margin-top:40vh; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>SART Experiment</h1>
-    <p>This is the participant-facing page. When the experiment finishes, results will be saved to the server.</p>
-
-    <h2>Quick Test Submission</h2>
-    <p>Click the button below to simulate a test submission and confirm that <code>/api/submit</code> is working.</p>
-    <button id="run">Run test submission</button>
-    <pre id="log"></pre>
-
-    <h2>Run Demo Experiment</h2>
-    <button id="startExp">Start Experiment</button>
-    <div id="jspsych-target"></div>
-  </div>
+  <div id="jspsych-target"></div>
 
   <script>
-    const log = document.getElementById('log');
-
-    // 🔹 Test submission button
-    document.getElementById('run').onclick = async () => {
-      const payload = {
-        participant_id: 'demo-' + Math.random().toString(36).slice(2, 8),
-        timestamp: new Date().toISOString(),
-        score: Math.floor(Math.random() * 100),
-        notes: 'demo submission'
-      };
-
-      try {
-        const res = await fetch('/api/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: payload })
+    // Initialize jsPsych
+    const jsPsych = initJsPsych({
+      display_element: 'jspsych-target',
+      on_finish: async () => {
+        // Collect data
+        const trials = jsPsych.data.get().filter({trial_type: 'html-keyboard-response'}).values();
+        let correct = 0;
+        let total = 0;
+        trials.forEach(t => {
+          total++;
+          if (t.correct) correct++;
         });
+        const score = Math.round((correct/total)*100);
 
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Submit failed');
+        const summary = {
+          participant_id: 'P' + Math.random().toString(36).slice(2,8),
+          timestamp: new Date().toISOString(),
+          score,
+          trials
+        };
 
-        log.textContent = '✅ Submitted successfully:\n' + JSON.stringify(payload, null, 2);
-        log.className = 'ok';
-      } catch (e) {
-        log.textContent = '❌ Error: ' + e.message;
-        log.className = 'err';
-      }
-    };
-
-    // 🔹 Demo jsPsych experiment
-    document.getElementById('startExp').onclick = () => {
-      const jsPsych = initJsPsych({
-        display_element: 'jspsych-target',
-        on_finish: async () => {
-          const fullData = jsPsych.data.get().values();
-          const summary = {
-            participant_id: 'P001',
-            timestamp: new Date().toISOString(),
-            score: fullData.length, // simple demo: score = number of trials
-            notes: 'demo experiment'
-          };
-
+        // Submit to backend
+        try {
           await fetch('/api/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: summary })
           });
+          alert('Experiment finished. Your score: ' + score + '%');
+        } catch (e) {
+          alert('Error submitting data: ' + e.message);
+        }
+      }
+    });
+
+    // Digits 1–9, press SPACE except for "3"
+    const digits = [1,2,3,4,5,6,7,8,9];
+    const trials = [];
+
+    for (let i=0; i<30; i++) { // 30 trials demo
+      const digit = digits[Math.floor(Math.random()*digits.length)];
+      trials.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `<div class="stimulus">${digit}</div>`,
+        choices: [' '],
+        data: { digit },
+        on_finish: (data) => {
+          const isNoGo = (data.digit === 3);
+          const pressed = (data.response !== null);
+          data.correct = (!isNoGo && pressed) || (isNoGo && !pressed);
         }
       });
+    }
 
-      const timeline = [
-        {
-          type: jsPsychHtmlKeyboardResponse,
-          stimulus: '<div style="font-size:32px;">Press any key to continue</div>'
-        }
-      ];
-
-      jsPsych.run(timeline);
-    };
+    jsPsych.run(trials);
   </script>
 </body>
 </html>
