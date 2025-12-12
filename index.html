@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SART Test</title>
   <script src="https://unpkg.com/jspsych@7.3.3/dist/jspsych.js"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.1"></script>
   <link href="https://unpkg.com/jspsych@7.3.3/dist/jspsych.css" rel="stylesheet" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #000; color: #fff; }
+    .center { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 32px; }
+  </style>
 </head>
 <body>
   <div id="jspsych-target"></div>
@@ -15,9 +20,9 @@
     const timeline = [
       {
         type: jsPsychHtmlKeyboardResponse,
-        stimulus: '<div style="font-size:40px; text-align:center;">Hello Nafiz 👋</div>',
+        stimulus: '<div class="center">Hello Nafiz 👋<br>This screen confirms jsPsych is working.</div>',
         choices: "NO_KEYS",
-        trial_duration: 2000
+        trial_duration: 3000
       }
     ];
 
