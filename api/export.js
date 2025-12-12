@@ -1,25 +1,52 @@
-import { kv } from '@vercel/kv';
+import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
-  const pwd = req.query.pwd || req.headers['x-admin-password'];
-  if (!pwd || pwd !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const repo = process.env.GITHUB_REPO;
+  const branch = process.env.GITHUB_BRANCH;
+  const token = process.env.GITHUB_TOKEN;
+
+  const pwd = req.query.pwd;
+  if (pwd !== process.env.ADMIN_PASSWORD) {
+    return res.status(403).json({ error: 'Unauthorized' });
   }
 
-  const items = await kv.lrange('trials', 0, -1); // all
-  const sessions = items.map(i => JSON.parse(i));
-
-  const header = ['session_id','BLOCKNAME','BLOCKNUMBER','trial_type','digit','digit_size','mystatus','RT'];
-  const lines = [];
-  sessions.forEach(s => {
-    s.rows.forEach(r => {
-      lines.push([
-        s.session_id, r.BLOCKNAME, r.BLOCKNUMBER, r.trial_type, r.digit, r.digit_size, r.mystatus, r.RT
-      ].join(','));
-    });
+  const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/data.txt?ref=${branch}`, {
+    headers: { Authorization: `token ${token}` }
   });
-  const csv = [header.join(','), ...lines].join('\n');
 
-  res.setHeader('Content-Type', 'text/csv');
-  res.status(200).send(csv);
+  if (getRes.status === 404) {
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send('');
+  }
+  if (!getRes.ok) {
+    const err = await getRes.json();
+    return res.status(500).json({ error: err.message || 'Failed to read data.txt' });
+  }
+
+  const file = await getRes.json();
+  const text = Buffer.from(file.content, 'base64').toString('utf8');
+
+  const format = (req.query.format || '').toLowerCase();
+  if (format === 'csv') {
+    const lines = text.split('\n').filter(Boolean);
+    const rows = lines.map(line => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+
+    const cols = ['participant_id','timestamp','score','notes'];
+    const header = cols.join(',');
+    const csvRows = rows.map(r => cols.map(c => csvCell(r?.[c])).join(','));
+    const csv = [header, ...csvRows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    return res.status(200).send(csv);
+  }
+
+  res.setHeader('Content-Type', 'text/plain');
+  return res.status(200).send(text);
+}
+
+function csvCell(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
 }
