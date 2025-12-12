@@ -1,32 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SART Admin</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/mvp.css@1.12/mvp.css">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #login { max-width: 420px; margin: 30px auto; display: flex; gap: 8px; }
-    #stats { margin-top: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
-    th, td { border: 1px solid #ddd; padding: 8px; }
-    th { background: #f5f5f5; }
-    .row { display:flex; gap:12px; margin-top:12px; }
-    .btn { background:#0ea5e9; color:#000; padding:8px 12px; border:none; border-radius:6px; cursor:pointer; }
+    body { max-width: 1000px; margin: 20px auto; }
+    pre { max-height: 300px; overflow: auto; white-space: pre-wrap; }
+    table { width: 100%; }
   </style>
 </head>
 <body>
-  <h1>SART Admin Dashboard</h1>
-  <div id="login">
-    <input id="pwd" type="password" placeholder="Admin password" />
-    <button id="loginBtn" class="btn">Login</button>
-  </div>
-  <div id="controls" style="display:none" class="row">
-    <button id="refreshBtn" class="btn">Refresh data</button>
-    <button id="exportBtn" class="btn">Download CSV</button>
-  </div>
-  <div id="stats"></div>
-  <div id="table"></div>
+  <header>
+    <h1>SART Admin</h1>
+    <p>Enter password to view and download data.</p>
+  </header>
 
-  <script src="./admin.js"></script>
+  <section id="login">
+    <label>Password
+      <input type="password" id="pwd" placeholder="Admin password" />
+    </label>
+    <button id="loginBtn">Log in</button>
+    <p id="loginMsg"></p>
+  </section>
+
+  <section id="dash" style="display:none;">
+    <h2>Data</h2>
+    <div>
+      <button id="refreshBtn">Refresh</button>
+      <button id="downloadBtn">Download CSV</button>
+    </div>
+    <h3>Raw file (data.txt)</h3>
+    <pre id="raw"></pre>
+
+    <h3>Parsed table</h3>
+    <table id="table">
+      <thead>
+        <tr>
+          <th>participant_id</th>
+          <th>timestamp</th>
+          <th>score</th>
+          <th>notes</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <script src="admin.js"></script>
 </body>
 </html>
