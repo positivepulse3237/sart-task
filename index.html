@@ -1,79 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SART Experiment</title>
-
-  <!-- Load jsPsych -->
-  <script src="https://unpkg.com/jspsych@7.3.3/dist/jspsych.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.1"></script>
-  <link href="https://unpkg.com/jspsych@7.3.3/dist/jspsych.css" rel="stylesheet" />
-
-  <style>
-    body { background:#000; color:#fff; font-family:Arial,sans-serif; }
-    .stimulus { font-size: 64px; text-align:center; margin-top:40vh; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SART Task Experiment</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; }
+    </style>
 </head>
 <body>
-  <div id="jspsych-target"></div>
+    <h1>SART Task Experiment</h1>
+    <p>Do your experiment here...</p>
+    
+    <button onclick="finishExp()">Submit Results</button>
+    
+    <p id="status" style="margin-top: 20px; color: gray;"></p>
 
-  <script>
-    // Initialize jsPsych
-    const jsPsych = initJsPsych({
-      display_element: 'jspsych-target',
-      on_finish: async () => {
-        // Collect data
-        const trials = jsPsych.data.get().filter({trial_type: 'html-keyboard-response'}).values();
-        let correct = 0;
-        let total = 0;
-        trials.forEach(t => {
-          total++;
-          if (t.correct) correct++;
-        });
-        const score = Math.round((correct/total)*100);
+    <script>
+        async function finishExp() {
+            // -----------------------------------------
+            // REPLACE THIS WITH YOUR REAL EXPERIMENT DATA
+            // -----------------------------------------
+            const subjectId = "User_" + Math.floor(Math.random() * 1000);
+            const score = Math.floor(Math.random() * 100); 
+            const dataLine = `${subjectId}, ${score}, ${new Date().toISOString()}`;
+            // -----------------------------------------
 
-        const summary = {
-          participant_id: 'P' + Math.random().toString(36).slice(2,8),
-          timestamp: new Date().toISOString(),
-          score,
-          trials
-        };
+            const status = document.getElementById('status');
+            status.innerText = "Saving data, please wait...";
 
-        // Submit to backend
-        try {
-          await fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: summary })
-          });
-          alert('Experiment finished. Your score: ' + score + '%');
-        } catch (e) {
-          alert('Error submitting data: ' + e.message);
+            try {
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: dataLine })
+                });
+
+                if (response.ok) {
+                    status.innerText = "✅ Success! Data saved.";
+                    status.style.color = "green";
+                } else {
+                    status.innerText = "❌ Error saving data.";
+                    status.style.color = "red";
+                }
+            } catch (e) {
+                status.innerText = "❌ Network Error.";
+            }
         }
-      }
-    });
-
-    // Digits 1–9, press SPACE except for "3"
-    const digits = [1,2,3,4,5,6,7,8,9];
-    const trials = [];
-
-    for (let i=0; i<30; i++) { // 30 trials demo
-      const digit = digits[Math.floor(Math.random()*digits.length)];
-      trials.push({
-        type: jsPsychHtmlKeyboardResponse,
-        stimulus: `<div class="stimulus">${digit}</div>`,
-        choices: [' '],
-        data: { digit },
-        on_finish: (data) => {
-          const isNoGo = (data.digit === 3);
-          const pressed = (data.response !== null);
-          data.correct = (!isNoGo && pressed) || (isNoGo && !pressed);
-        }
-      });
-    }
-
-    jsPsych.run(trials);
-  </script>
+    </script>
 </body>
 </html>
