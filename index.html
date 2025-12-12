@@ -4,61 +4,97 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SART Experiment</title>
+
+  <!-- Load jsPsych -->
+  <script src="https://unpkg.com/jspsych@7.3.3/dist/jspsych.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.1"></script>
+  <link href="https://unpkg.com/jspsych@7.3.3/dist/jspsych.css" rel="stylesheet" />
+
   <style>
-    body { background:#000; color:#fff; font-family:Arial,sans-serif; margin:0; }
-    .wrap { max-width:800px; margin:0 auto; padding:24px; }
-    button { padding:10px 16px; font-size:16px; cursor:pointer; }
+    body { background:#000; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
+    .container { max-width:800px; margin:auto; }
+    h1 { font-size:32px; margin-bottom:10px; }
+    button { padding:10px 16px; font-size:16px; margin-top:10px; cursor:pointer; }
+    pre { background:#111; padding:10px; border-radius:5px; white-space:pre-wrap; word-break:break-word; }
     .ok { color:#64ffda; }
     .err { color:#ff6b6b; }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="container">
     <h1>SART Experiment</h1>
-    <p>Run your experiment here. When it finishes, send the results to the server.</p>
+    <p>This is the participant-facing page. When the experiment finishes, results will be saved to the server.</p>
 
-    <h3>Quick end‑to‑end test</h3>
-    <p>Click to simulate a result submission (without jsPsych) to confirm storage works.</p>
+    <h2>Quick Test Submission</h2>
+    <p>Click the button below to simulate a test submission and confirm that <code>/api/submit</code> is working.</p>
     <button id="run">Run test submission</button>
     <pre id="log"></pre>
 
-    <script>
-      const log = document.getElementById('log');
-      document.getElementById('run').onclick = async () => {
-        const payload = {
-          participant_id: 'demo-' + Math.random().toString(36).slice(2, 8),
-          timestamp: new Date().toISOString(),
-          score: Math.floor(Math.random()*100),
-          notes: 'demo submission'
-        };
+    <h2>Run Demo Experiment</h2>
+    <button id="startExp">Start Experiment</button>
+    <div id="jspsych-target"></div>
+  </div>
 
-        try {
-          const res = await fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
-          });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error || 'Submit failed');
-          log.innerHTML = 'Submitted ✓\n' + JSON.stringify(payload, null, 2);
-          log.className = 'ok';
-        } catch (e) {
-          log.innerHTML = 'Error: ' + e.message;
-          log.className = 'err';
-        }
+  <script>
+    const log = document.getElementById('log');
+
+    // 🔹 Test submission button
+    document.getElementById('run').onclick = async () => {
+      const payload = {
+        participant_id: 'demo-' + Math.random().toString(36).slice(2, 8),
+        timestamp: new Date().toISOString(),
+        score: Math.floor(Math.random() * 100),
+        notes: 'demo submission'
       };
 
-      // Replace this with your jsPsych on_finish when your experiment is ready:
-      // on_finish: async () => {
-      //   const fullData = jsPsych.data.get().values();
-      //   const summary = { participant_id, score, timestamp: new Date().toISOString(), data: fullData };
-      //   await fetch('/api/submit', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({ data: summary })
-      //   });
-      // }
-    </script>
-  </div>
+      try {
+        const res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload })
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Submit failed');
+
+        log.textContent = '✅ Submitted successfully:\n' + JSON.stringify(payload, null, 2);
+        log.className = 'ok';
+      } catch (e) {
+        log.textContent = '❌ Error: ' + e.message;
+        log.className = 'err';
+      }
+    };
+
+    // 🔹 Demo jsPsych experiment
+    document.getElementById('startExp').onclick = () => {
+      const jsPsych = initJsPsych({
+        display_element: 'jspsych-target',
+        on_finish: async () => {
+          const fullData = jsPsych.data.get().values();
+          const summary = {
+            participant_id: 'P001',
+            timestamp: new Date().toISOString(),
+            score: fullData.length, // simple demo: score = number of trials
+            notes: 'demo experiment'
+          };
+
+          await fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: summary })
+          });
+        }
+      });
+
+      const timeline = [
+        {
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: '<div style="font-size:32px;">Press any key to continue</div>'
+        }
+      ];
+
+      jsPsych.run(timeline);
+    };
+  </script>
 </body>
 </html>
