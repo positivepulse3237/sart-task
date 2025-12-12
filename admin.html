@@ -1,53 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin dashboard</title>
-  <link rel="stylesheet" href="https://unpkg.com/mvp.css@1.12/mvp.css">
-  <style>
-    body { max-width: 1000px; margin: 20px auto; }
-    pre { max-height: 300px; overflow: auto; white-space: pre-wrap; }
-    table { width: 100%; }
-  </style>
+    <title>Admin Panel</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 300px; margin-top: 10px; }
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>SART Admin</h1>
-    <p>Enter password to view and download data.</p>
-  </header>
-
-  <section id="login">
-    <label>Password
-      <input type="password" id="pwd" placeholder="Admin password" />
-    </label>
-    <button id="loginBtn">Log in</button>
-    <p id="loginMsg"></p>
-  </section>
-
-  <section id="dash" style="display:none;">
-    <h2>Data</h2>
-    <div>
-      <button id="refreshBtn">Refresh</button>
-      <button id="downloadBtn">Download CSV</button>
+    <h1>Experiment Admin</h1>
+    
+    <div id="loginSection">
+        <input type="password" id="pass" placeholder="Enter Password">
+        <button onclick="login()">Login</button>
     </div>
-    <h3>Raw file (data.txt)</h3>
-    <pre id="raw"></pre>
 
-    <h3>Parsed table</h3>
-    <table id="table">
-      <thead>
-        <tr>
-          <th>participant_id</th>
-          <th>timestamp</th>
-          <th>score</th>
-          <th>notes</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <div id="dataSection" class="hidden">
+        <button onclick="downloadCSV()">Download as CSV</button>
+        <h3>Current Data in data.txt:</h3>
+        <textarea id="displayArea" readonly>Loading...</textarea>
+    </div>
 
-  <script src="admin.js"></script>
+    <script>
+        let rawData = "";
+
+        async function login() {
+            const p = document.getElementById('pass').value;
+            // CHANGE PASSWORD HERE
+            if(p !== "admin123") {
+                alert("Wrong password");
+                return;
+            }
+
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dataSection').classList.remove('hidden');
+
+            // FETCH RAW DATA DIRECTLY FROM GITHUB
+            const url = 'https://raw.githubusercontent.com/positivepulse3237/sart-task/main/data.txt';
+            
+            try {
+                const res = await fetch(url);
+                rawData = await res.text();
+                document.getElementById('displayArea').value = rawData;
+            } catch (e) {
+                document.getElementById('displayArea').value = "Error loading file. Make sure data.txt exists.";
+            }
+        }
+
+        function downloadCSV() {
+            const blob = new Blob([rawData], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "experiment_data.csv";
+            a.click();
+        }
+    </script>
 </body>
 </html>
