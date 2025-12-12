@@ -10,8 +10,11 @@ export default async function handler(req, res) {
   const branch = process.env.GITHUB_BRANCH;
   const token = process.env.GITHUB_TOKEN;
 
+  // Helper: encode utf8 string to base64
+  const toBase64 = (s) => Buffer.from(s, 'utf8').toString('base64');
+
   try {
-    // Get current file content + sha
+    // 1) Read current data.txt (if exists)
     const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/data.txt?ref=${branch}`, {
       headers: { Authorization: `token ${token}` }
     });
@@ -27,9 +30,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: err.message || 'Failed to read data.txt' });
     }
 
+    // 2) Build JSONL
     const line = JSON.stringify(data);
     const newContent = existing ? `${existing}\n${line}` : line;
 
+    // 3) Write back via PUT (commit)
     const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/data.txt`, {
       method: 'PUT',
       headers: {
@@ -38,10 +43,18 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         message: 'Append experiment data',
-        content: Buffer.from(newContent, 'base64').toString('base64') // incorrect! Fix
+        content: toBase64(newContent),
+        sha,         // include sha if file existed
+        branch
       })
     });
-    // Oops — fix base64: we must encode utf8 -> base64
+
+    const putJson = await putRes.json();
+    if (!putRes.ok) {
+      return res.status(500).json({ error: putJson.message || 'Failed to write data.txt' });
+    }
+
+    return res.status(200).json({ success: true, commit: putJson.commit?.sha });
   } catch (e) {
     return res.status(500).json({ error: e.message || 'Unknown error' });
   }
