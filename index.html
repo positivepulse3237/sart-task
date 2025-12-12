@@ -4,50 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SART Task Experiment</title>
+    
+    <script src="https://unpkg.com/jspsych@7.3.4/jspsych.js"></script>
+    
+    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+    <script src="https://unpkg.com/jspsych@7.3.4/plugin-html-keyboard-response.js"></script>
+    <script src="https://unpkg.com/jspsych@7.3.4/plugin-preload.js"></script>
+    
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; }
+        /* Optional: Make background black as seen in your screenshot */
+        body { background-color: black; color: white; }
     </style>
 </head>
 <body>
-    <h1>SART Task Experiment</h1>
-    <p>Do your experiment here...</p>
-    
-    <button onclick="finishExp()">Submit Results</button>
-    
-    <p id="status" style="margin-top: 20px; color: gray;"></p>
+    <div id="jspsych-target"></div>
 
     <script>
-        async function finishExp() {
-            // -----------------------------------------
-            // REPLACE THIS WITH YOUR REAL EXPERIMENT DATA
-            // -----------------------------------------
-            const subjectId = "User_" + Math.floor(Math.random() * 1000);
-            const score = Math.floor(Math.random() * 100); 
-            const dataLine = `${subjectId}, ${score}, ${new Date().toISOString()}`;
-            // -----------------------------------------
+        // ------------------------------------------
+        // YOUR EXPERIMENT CODE GOES HERE
+        // ------------------------------------------
+        
+        // 1. Initialize jsPsych
+        const jsPsych = initJsPsych({
+            on_finish: function() {
+                // When experiment ends, save the data!
+                saveData(jsPsych.data.get().csv());
+            }
+        });
 
-            const status = document.getElementById('status');
-            status.innerText = "Saving data, please wait...";
+        // 2. Define your timeline (SART task logic)
+        // (Paste your specific SART experiment code here)
+        var timeline = [];
+
+        var welcome = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: "Welcome to the experiment. Press any key to begin."
+        };
+        timeline.push(welcome);
+
+        // 3. The Save Function (Connects to your GitHub/Vercel backend)
+        async function saveData(dataContent) {
+            const subjectId = "User_" + Date.now();
+            // Combine ID with the CSV data
+            const finalData = `\n--- New Session ${subjectId} ---\n` + dataContent;
+
+            const statusMsg = document.createElement('p');
+            statusMsg.innerText = "Saving data...";
+            document.body.appendChild(statusMsg);
 
             try {
-                const response = await fetch('/api/save', {
+                await fetch('/api/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: dataLine })
+                    body: JSON.stringify({ content: finalData })
                 });
-
-                if (response.ok) {
-                    status.innerText = "✅ Success! Data saved.";
-                    status.style.color = "green";
-                } else {
-                    status.innerText = "❌ Error saving data.";
-                    status.style.color = "red";
-                }
+                statusMsg.innerText = "Data Saved!";
             } catch (e) {
-                status.innerText = "❌ Network Error.";
+                statusMsg.innerText = "Error saving data.";
             }
         }
+
+        // 4. Run the experiment
+        jsPsych.run(timeline);
     </script>
 </body>
 </html>
